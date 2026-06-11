@@ -10,7 +10,7 @@ An interactive, production-ready educational platform combining a high-performan
 
 ## 👥 Authors & Collaborators
 Developed with precision by the engineering team at **PSG Polytechnic College**:
-* **M. Sulookamithra (Sloki)** * **M. Ragavisri (Ragavi)**
+* **M. Ragavisri (Ragavi)**
 
 ---
 
