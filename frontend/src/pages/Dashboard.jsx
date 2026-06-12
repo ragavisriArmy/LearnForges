@@ -7,6 +7,9 @@ export default function Dashboard() {
     const auth = useContext(AuthContext) || {};
     const user = auth.user || { id: 1, name: "M. Ragavisri" }; 
 
+    // Dynamically uses the production API URL when live, falls back to localhost if not found
+    const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
     const [activeTab, setActiveTab] = useState('catalog'); 
     const [courses, setCourses] = useState([]);
     const [stats, setStats] = useState({ totalAttempts: 0, averageAccuracy: 0, categoryBreakdown: [], historyLog: [] });
@@ -26,16 +29,39 @@ export default function Dashboard() {
 
     const [adminForm, setAdminForm] = useState({ title: "", description: "", category: "Backend Engineering", question: "", opt1: "", opt2: "", opt3: "", opt4: "", correct: "" });
 
+    // Inject responsive stylesheet automatically to handle mobile scaling smoothly
+    useEffect(() => {
+        const styleId = "dashboard-responsive-styles";
+        if (!document.getElementById(styleId)) {
+            const styleElement = document.createElement("style");
+            styleElement.id = styleId;
+            styleElement.innerText = `
+                .responsive-header { display: flex; justify-content: space-between; alignItems: center; flex-direction: row; border-bottom: 1px solid #1e293b; padding-bottom: 1.5rem; margin-bottom: 2.5rem; gap: 1rem; }
+                .responsive-nav { display: flex; gap: 0.5rem; background-color: #0f172a; padding: 0.4rem; border-radius: 8px; border: 1px solid #1e293b; flex-wrap: wrap; }
+                .responsive-grid { display: grid; grid-template-columns: 2.2fr 1fr; gap: 2rem; }
+                .quiz-options-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+                
+                @media (max-width: 768px) {
+                    .responsive-header { flex-direction: column !important; align-items: flex-start !important; gap: 1.5rem !important; }
+                    .responsive-nav { width: 100% !important; justify-content: space-between !important; }
+                    .responsive-nav button { flex: 1 1 auto !important; text-align: center !important; font-size: 0.85rem !important; padding: 0.5rem 0.5rem !important; }
+                    .responsive-grid { grid-template-columns: 1fr !important; }
+                    .quiz-options-grid { grid-template-columns: 1fr !important; }
+                }
+            `;
+            document.head.appendChild(styleElement);
+        }
+    }, []);
+
     const fetchInitialData = async () => {
         try {
-            const coursesRes = await axios.get('http://localhost:5000/api/quiz/courses');
+            const coursesRes = await axios.get(`${API_BASE_URL}/api/quiz/courses`);
             setCourses(coursesRes.data.courses || []);
             
-            // Uses the safe user.id node
-            const statsRes = await axios.get(`http://localhost:5000/api/quiz/stats/${user.id}`);
+            const statsRes = await axios.get(`${API_BASE_URL}/api/quiz/stats/${user.id}`);
             setStats(statsRes.data);
             
-            const leaderRes = await axios.get('http://localhost:5000/api/quiz/leaderboard');
+            const leaderRes = await axios.get(`${API_BASE_URL}/api/quiz/leaderboard`);
             setLeaderboard(leaderRes.data.leaderboard || []);
         } catch (err) {
             console.error("Data syncing connection error:", err);
@@ -56,7 +82,7 @@ export default function Dashboard() {
     const startTrack = async (courseId) => {
         try {
             setLoading(true);
-            const res = await axios.get(`http://localhost:5000/api/quiz/questions/${courseId}`);
+            const res = await axios.get(`${API_BASE_URL}/api/quiz/questions/${courseId}`);
             setQuizzes(res.data.quizzes || []);
             setSelectedCourseId(courseId);
             setQuizFinished(false);
@@ -71,15 +97,16 @@ export default function Dashboard() {
 
     const submitQuiz = async () => {
         try {
-            const response = await axios.post('http://localhost:5000/api/quiz/submit', {
+            const response = await axios.post(`${API_BASE_URL}/api/quiz/submit`, {
                 userId: user.id, courseId: selectedCourseId, selectedAnswers
             });
             setResultsSummary({ score: response.data.score, total: response.data.totalQuestions });
+            let imgElement = response.data.score;
             setQuizFinished(true);
             
-            const statsRes = await axios.get(`http://localhost:5000/api/quiz/stats/${user.id}`);
+            const statsRes = await axios.get(`${API_BASE_URL}/api/quiz/stats/${user.id}`);
             setStats(statsRes.data);
-            const leaderRes = await axios.get('http://localhost:5000/api/quiz/leaderboard');
+            const leaderRes = await axios.get(`${API_BASE_URL}/api/quiz/leaderboard`);
             setLeaderboard(leaderRes.data.leaderboard || []);
         } catch (err) { console.error(err); }
     };
@@ -92,7 +119,7 @@ export default function Dashboard() {
             correct_answer: adminForm.correct
         };
         try {
-            await axios.post('http://localhost:5000/api/quiz/admin/create-quiz', payload);
+            await axios.post(`${API_BASE_URL}/api/quiz/admin/create-quiz`, payload);
             alert("✔ Custom matrix module successfully synced with database core arrays!");
             setAdminForm({ title: "", description: "", category: "Backend Engineering", question: "", opt1: "", opt2: "", opt3: "", opt4: "", correct: "" });
             fetchInitialData();
@@ -104,12 +131,15 @@ export default function Dashboard() {
 
     return (
         <div style={{ maxWidth: '1240px', margin: '2rem auto', padding: '0 1.5rem', color: '#f8fafc', fontFamily: 'system-ui, sans-serif' }}>
-            <header style={{ marginBottom: '2.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1e293b', paddingBottom: '1.5rem' }}>
+            
+            {/* RESPONSIVE HEADER CONTAINER */}
+            <header className="responsive-header">
                 <div>
                     <h1 style={{ fontSize: '2.25rem', fontWeight: '800', letterSpacing: '-0.05em', margin: 0 }}>Learn<span style={{ color: '#3b82f6' }}>Forge</span> Workspace</h1>
                     <p style={{ color: '#94a3b8', fontSize: '0.95rem', margin: '0.25rem 0 0 0' }}>Operator: <strong>{user?.name}</strong></p>
                 </div>
-                <nav style={{ display: 'flex', gap: '0.5rem', backgroundColor: '#0f172a', padding: '0.4rem', borderRadius: '8px', border: '1px solid #1e293b' }}>
+                {/* RESPONSIVE BUTTON WRAPPER */}
+                <nav className="responsive-nav">
                     <button onClick={() => { setActiveTab('catalog'); setSelectedCourseId(null); }} style={{ padding: '0.5rem 1rem', borderRadius: '6px', border: 'none', cursor: 'pointer', fontWeight: '600', backgroundColor: activeTab === 'catalog' ? '#3b82f6' : 'transparent', color: '#fff' }}>Course Catalog</button>
                     <button onClick={() => { setActiveTab('sandbox'); setSelectedCourseId(null); }} style={{ padding: '0.5rem 1rem', borderRadius: '6px', border: 'none', cursor: 'pointer', fontWeight: '600', backgroundColor: activeTab === 'sandbox' ? '#3b82f6' : 'transparent', color: '#fff' }}>UI Sandbox</button>
                     <button onClick={() => { setActiveTab('admin'); setSelectedCourseId(null); }} style={{ padding: '0.5rem 1rem', borderRadius: '6px', border: 'none', cursor: 'pointer', fontWeight: '600', backgroundColor: activeTab === 'admin' ? '#3b82f6' : 'transparent', color: '#fff' }}>Admin Panel</button>
@@ -117,7 +147,8 @@ export default function Dashboard() {
                 </nav>
             </header>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '2.2fr 1fr', gap: '2rem' }}>
+            {/* RESPONSIVE GRID LAYOUT */}
+            <div className="responsive-grid">
                 <main style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
                     
                     {selectedCourseId !== null ? (
@@ -133,7 +164,7 @@ export default function Dashboard() {
                                     {quizzes.map((quiz, index) => (
                                         <div key={quiz.id} style={{ marginBottom: '2rem' }}>
                                             <p style={{ fontSize: '1.1rem', marginBottom: '1rem' }}>{index + 1}. {quiz.question}</p>
-                                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                                            <div className="quiz-options-grid">
                                                 {quiz.options.map(option => (
                                                     <button key={option} onClick={() => handleAnswerSelect(quiz.id, option)} style={{ padding: '0.85rem', borderRadius: '8px', border: '1px solid #475569', textAlign: 'left', cursor: 'pointer', backgroundColor: selectedAnswers[quiz.id] === option ? '#3b82f6' : '#0f172a', color: '#fff' }}>{option}</button>
                                                 ))}
@@ -156,9 +187,9 @@ export default function Dashboard() {
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                                     {courses.map(course => (
                                         <div key={course.id} style={{ backgroundColor: '#1e293b', padding: '1.5rem', borderRadius: '10px', border: '1px solid #334155' }}>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', flexWrap: 'wrap', gap: '0.5rem' }}>
                                                 <h3 style={{ margin: 0, color: '#f1f5f9' }}>{course.title}</h3>
-                                                <span style={{ padding: '0.25rem 0.6`rem', backgroundColor: '#1e1b4b', color: '#a5b4fc', borderRadius: '20px', fontSize: '0.75rem', fontWeight: '600' }}>{course.category}</span>
+                                                <span style={{ padding: '0.25rem 0.6rem', backgroundColor: '#1e1b4b', color: '#a5b4fc', borderRadius: '20px', fontSize: '0.75rem', fontWeight: '600', height: 'fit-content' }}>{course.category}</span>
                                             </div>
                                             <p style={{ color: '#94a3b8', fontSize: '0.95rem' }}>{course.description}</p>
                                             <button onClick={() => startTrack(course.id)} style={{ padding: '0.55rem 1.4rem', backgroundColor: '#3b82f6', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '600' }}>Start Track</button>
@@ -170,7 +201,7 @@ export default function Dashboard() {
                             {activeTab === 'sandbox' && (
                                 <div style={{ backgroundColor: '#1e293b', padding: '2rem', borderRadius: '12px', border: '1px solid #334155' }}>
                                     <h2 style={{ color: '#3b82f6', margin: '0 0 1.5rem 0' }}>UI/UX Mobile Screen Sandbox</h2>
-                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                                             <label><span style={{ fontSize: '0.85rem', color: '#94a3b8' }}>DISPLAY TEXT</span>
                                                 <input type="text" value={sbText} onChange={(e) => setSbText(e.target.value)} style={{ width: '100%', padding: '0.6rem', borderRadius: '6px', backgroundColor: '#0f172a', border: '1px solid #334155', color: '#fff', marginTop: '0.4rem' }}/>
@@ -213,7 +244,7 @@ export default function Dashboard() {
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                                     <div style={{ backgroundColor: '#1e293b', padding: '2rem', borderRadius: '12px', border: '1px solid #10b981' }}>
                                         <h2 style={{ color: '#10b981', margin: '0 0 1rem 0' }}>📈 Competency Performance Breakdown</h2>
-                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                                             {stats.categoryBreakdown.map((cat, idx) => {
                                                 const rate = Math.round((cat.correct / cat.total) * 100);
                                                 return (
@@ -233,12 +264,12 @@ export default function Dashboard() {
                                         <h3 style={{ margin: '0 0 1.5rem 0' }}>⏳ Complete Evaluation History Log</h3>
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                                             {stats.historyLog.map((log, i) => (
-                                                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '1rem', backgroundColor: '#0f172a', borderRadius: '8px', borderLeft: '4px solid #3b82f6' }}>
+                                                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '1rem', backgroundColor: '#0f172a', borderRadius: '8px', borderLeft: '4px solid #3b82f6', gap: '0.5rem' }}>
                                                     <div>
                                                         <h4 style={{ margin: 0 }}>{log.title}</h4>
                                                         <span style={{ color: '#64748b', fontSize: '0.8rem' }}>{new Date(log.attempted_at).toLocaleString()}</span>
                                                     </div>
-                                                    <strong style={{ color: '#10b981' }}>{log.score} / {log.total_questions}</strong>
+                                                    <strong style={{ color: '#10b981', whiteSpace: 'nowrap' }}>{log.score} / {log.total_questions}</strong>
                                                 </div>
                                             ))}
                                         </div>
