@@ -1,5 +1,6 @@
 import React, { useState, useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
+import axios from 'axios';
 
 export default function Login({ onSuccess, onBypass }) {
     const auth = useContext(AuthContext) || {};
@@ -7,16 +8,34 @@ export default function Login({ onSuccess, onBypass }) {
 
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [errorMessage, setErrorMessage] = useState('');
 
-    const handleSubmit = (e) => {
+    // Dynamically point to your live backend domain, falling back to local port
+    const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
+    const handleSubmit = async (e) => {
         e.preventDefault();
+        setErrorMessage('');
         
         if (auth.login) {
-            // If the real authentication context exists, use it
-            login(email, password);
-            if (onSuccess) onSuccess();
+            try {
+                // 1. Post credentials to your backend server auth layer
+                const res = await axios.post(`${API_BASE_URL}/api/auth/login`, { email, password });
+                
+                // 2. Extract data payloads mapped by your node api controller
+                if (res.data && res.data.token && res.data.user) {
+                    // Match the correct signature: login(userData, userToken)
+                    login(res.data.user, res.data.token);
+                    if (onSuccess) onSuccess();
+                } else {
+                    setErrorMessage("Invalid credentials response structure.");
+                }
+            } catch (err) {
+                console.error("Authentication error node:", err);
+                setErrorMessage(err.response?.data?.message || "Connection refused by database api node.");
+            }
         } else {
-            // Otherwise, bypass cleanly straight to the dashboard workspace metrics!
+            // Otherwise, fallback bypass cleanly straight to the dashboard workspace metrics!
             if (onBypass) onBypass();
         }
     };
@@ -31,6 +50,12 @@ export default function Login({ onSuccess, onBypass }) {
                 <p style={{ color: '#64748b', fontSize: '0.85rem', textAlign: 'center', marginBottom: '2rem' }}>
                     Enter credentials to initialize secure database session nodes.
                 </p>
+
+                {errorMessage && (
+                    <div style={{ padding: '0.75rem', backgroundColor: '#7f1d1d', border: '1px solid #f87171', color: '#fca5a5', borderRadius: '6px', fontSize: '0.85rem', marginBottom: '1.25rem', textAlign: 'center' }}>
+                        {errorMessage}
+                    </div>
+                )}
 
                 <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                     <label style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.85rem', color: '#94a3b8', fontWeight: '600' }}>
