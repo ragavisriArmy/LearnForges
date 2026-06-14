@@ -8,27 +8,25 @@ export default function App() {
     const auth = useContext(AuthContext) || {};
     const user = auth.user || null;
 
-    // Track the linear app view state: 'landing' -> 'login' -> 'dashboard'
+    // Track state: 'landing' -> 'login' -> 'dashboard'
     const [currentView, setCurrentView] = useState('landing');
 
-    // AUTOMATIC SESSION SYNC: If a logged-in user is found in the local cache storage, 
-    // bypass the landing/login flows completely on mount or refresh!
+    // If local storage already has an active user session, stay on the dashboard!
     useEffect(() => {
         if (user) {
             setCurrentView('dashboard');
         }
     }, [user]);
 
-    // 1. PHASE 1: Elegant Showcase Landing Page
+    // 1. PHASE 1: Landing Page
     if (currentView === 'landing') {
+        if (user) return <Dashboard />;
         return <Landing onEnterApp={() => setCurrentView('login')} />;
     }
 
-    // 2. PHASE 2: Secured Console Authentication
+    // 2. PHASE 2: Login Console
     if (currentView === 'login') {
-        if (user) {
-            return <Dashboard />;
-        }
+        if (user) return <Dashboard />;
         return (
             <Login 
                 onSuccess={() => setCurrentView('dashboard')} 
@@ -37,8 +35,7 @@ export default function App() {
         );
     }
 
-    // 3. PHASE 3: Functional Engineering Workspace
-    // Extra safety: If the user manually logged out or cleared data, send them back to login
+    // 3. PHASE 3: Dashboard Workspace
     if (currentView === 'dashboard' && !user) {
         return <Login onSuccess={() => setCurrentView('dashboard')} onBypass={() => setCurrentView('dashboard')} />;
     }
