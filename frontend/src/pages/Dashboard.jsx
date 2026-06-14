@@ -3,7 +3,7 @@ import { AuthContext } from '../context/AuthContext';
 import axios from 'axios';
 
 export default function Dashboard() {
-    // FIXED: Removed the hardcoded fallback name so it uses the real logged-in friend's data
+    // Safely pull the local storage authentication states
     const auth = useContext(AuthContext) || {};
     const user = auth.user || null; 
 
@@ -36,7 +36,7 @@ export default function Dashboard() {
             const styleElement = document.createElement("style");
             styleElement.id = styleId;
             styleElement.innerText = `
-                .responsive-header { display: flex; justify-content: space-between; alignItems: center; flex-direction: row; border-bottom: 1px solid #1e293b; padding-bottom: 1.5rem; margin-bottom: 2.5rem; gap: 1rem; }
+                .responsive-header { display: flex; justify-content: space-between; align-items: center; flex-direction: row; border-bottom: 1px solid #1e293b; padding-bottom: 1.5rem; margin-bottom: 2.5rem; gap: 1rem; }
                 .responsive-nav { display: flex; gap: 0.5rem; background-color: #0f172a; padding: 0.4rem; border-radius: 8px; border: 1px solid #1e293b; flex-wrap: wrap; }
                 .responsive-grid { display: grid; grid-template-columns: 2.2fr 1fr; gap: 2rem; }
                 .quiz-options-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
@@ -54,7 +54,7 @@ export default function Dashboard() {
     }, []);
 
     const fetchInitialData = async () => {
-        if (!user) return; 
+        if (!user || !user.id) return; 
         try {
             const coursesRes = await axios.get(`${API_BASE_URL}/api/quiz/courses`);
             setCourses(coursesRes.data.courses || []);
@@ -127,8 +127,23 @@ export default function Dashboard() {
         } catch (err) { alert("Fault writing custom module rows."); }
     };
 
-    // If no user information is retrieved yet, wait for AuthContext to resolve the profile
-    if (!user) return <div style={{ padding: '4rem', textAlign: 'center', color: '#94a3b8' }}>Verifying Profile Session Array...</div>;
+    // SAFETY CHECK BLOCK: Displays clear options instead of an endless blank screen if context is out of sync
+    if (!user) {
+        return (
+            <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', backgroundColor: '#020617', color: '#94a3b8', padding: '2rem', fontFamily: 'system-ui, sans-serif' }}>
+                <div style={{ padding: '2rem', backgroundColor: '#0f172a', borderRadius: '12px', border: '1px solid #1e293b', textAlign: 'center', maxWidth: '400px', boxShadow: '0 10px 25px rgba(0,0,0,0.4)' }}>
+                    <h3 style={{ color: '#f8fafc', marginBottom: '0.5rem' }}>Session Not Synchronized</h3>
+                    <p style={{ fontSize: '0.9rem', color: '#64748b', marginBottom: '1.5rem' }}>Your workspace requires an authenticated operator session node. Let's clear the old storage variables and restart.</p>
+                    <button 
+                        onClick={() => { localStorage.clear(); window.location.reload(); }} 
+                        style={{ padding: '0.65rem 1.25rem', backgroundColor: '#ef4444', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '700', fontSize: '0.9rem', transition: 'background 0.2s' }}
+                    >
+                        Clear Session Cache & Reset
+                    </button>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div style={{ maxWidth: '1240px', margin: '2rem auto', padding: '0 1.5rem', color: '#f8fafc', fontFamily: 'system-ui, sans-serif' }}>
@@ -137,10 +152,9 @@ export default function Dashboard() {
             <header className="responsive-header">
                 <div>
                     <h1 style={{ fontSize: '2.25rem', fontWeight: '800', letterSpacing: '-0.05em', margin: 0 }}>Learn<span style={{ color: '#3b82f6' }}>Forge</span> Workspace</h1>
-                    {/* FIXED: This will now dynamically display whoever is logged in */}
-                    <p style={{ color: '#94a3b8', fontSize: '0.95rem', margin: '0.25rem 0 0 0' }}>Operator: <strong>{user.name}</strong></p>
+                    <p style={{ color: '#94a3b8', fontSize: '0.95rem', margin: '0.25rem 0 0 0' }}>Operator: <strong>{user.name || "Authenticated Friend"}</strong></p>
                 </div>
-                {/* RESPONSIVE BUTTON WRAPPER */}
+                {/* RESPONSIVE NAVIGATION WRAPPER */}
                 <nav className="responsive-nav">
                     <button onClick={() => { setActiveTab('catalog'); setSelectedCourseId(null); }} style={{ padding: '0.5rem 1rem', borderRadius: '6px', border: 'none', cursor: 'pointer', fontWeight: '600', backgroundColor: activeTab === 'catalog' ? '#3b82f6' : 'transparent', color: '#fff' }}>Course Catalog</button>
                     <button onClick={() => { setActiveTab('sandbox'); setSelectedCourseId(null); }} style={{ padding: '0.5rem 1rem', borderRadius: '6px', border: 'none', cursor: 'pointer', fontWeight: '600', backgroundColor: activeTab === 'sandbox' ? '#3b82f6' : 'transparent', color: '#fff' }}>UI Sandbox</button>
@@ -157,7 +171,7 @@ export default function Dashboard() {
                         <div style={{ backgroundColor: '#1e293b', padding: '2rem', borderRadius: '12px', border: '1px solid #334155' }}>
                             {!quizFinished ? (
                                 <div>
-                                    <div style={{ display: 'flex', justifycontent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', borderBottom: '2px solid #334155', paddingBottom: '1rem' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', borderBottom: '2px solid #334155', paddingBottom: '1rem' }}>
                                         <h2 style={{ color: '#3b82f6', margin: 0 }}>Knowledge Assessment</h2>
                                         <div style={{ padding: '0.5rem 1rem', borderRadius: '6px', backgroundColor: '#0f172a', border: timeLeft <= 10 ? '1px solid #ef4444' : '1px solid #334155' }}>
                                             <strong style={{ color: timeLeft <= 10 ? '#ef4444' : '#10b981' }}>{timeLeft}s</strong>
@@ -187,16 +201,20 @@ export default function Dashboard() {
                         <div>
                             {activeTab === 'catalog' && (
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                                    {courses.map(course => (
-                                        <div key={course.id} style={{ backgroundColor: '#1e293b', padding: '1.5rem', borderRadius: '10px', border: '1px solid #334155' }}>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', flexWrap: 'wrap', gap: '0.5rem' }}>
-                                                <h3 style={{ margin: 0, color: '#f1f5f9' }}>{course.title}</h3>
-                                                <span style={{ padding: '0.25rem 0.6rem', backgroundColor: '#1e1b4b', color: '#a5b4fc', borderRadius: '20px', fontSize: '0.75rem', fontWeight: '600', height: 'fit-content' }}>{course.category}</span>
+                                    {courses.length === 0 ? (
+                                        <p style={{ color: '#64748b', textAlign: 'center', padding: '2rem' }}>No active courses discovered inside this schema tier.</p>
+                                    ) : (
+                                        courses.map(course => (
+                                            <div key={course.id} style={{ backgroundColor: '#1e293b', padding: '1.5rem', borderRadius: '10px', border: '1px solid #334155' }}>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                                                    <h3 style={{ margin: 0, color: '#f1f5f9' }}>{course.title}</h3>
+                                                    <span style={{ padding: '0.25rem 0.6rem', backgroundColor: '#1e1b4b', color: '#a5b4fc', borderRadius: '20px', fontSize: '0.75rem', fontWeight: '600', height: 'fit-content' }}>{course.category}</span>
+                                                </div>
+                                                <p style={{ color: '#94a3b8', fontSize: '0.95rem' }}>{course.description}</p>
+                                                <button onClick={() => startTrack(course.id)} style={{ padding: '0.55rem 1.4rem', backgroundColor: '#3b82f6', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '600' }}>Start Track</button>
                                             </div>
-                                            <p style={{ color: '#94a3b8', fontSize: '0.95rem' }}>{course.description}</p>
-                                            <button onClick={() => startTrack(course.id)} style={{ padding: '0.55rem 1.4rem', backgroundColor: '#3b82f6', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '600' }}>Start Track</button>
-                                        </div>
-                                    ))}
+                                        ))
+                                    )}
                                 </div>
                             )}
 
@@ -247,33 +265,41 @@ export default function Dashboard() {
                                     <div style={{ backgroundColor: '#1e293b', padding: '2rem', borderRadius: '12px', border: '1px solid #10b981' }}>
                                         <h2 style={{ color: '#10b981', margin: '0 0 1rem 0' }}>📈 Competency Performance Breakdown</h2>
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                                            {stats.categoryBreakdown.map((cat, idx) => {
-                                                const rate = Math.round((cat.correct / cat.total) * 100);
-                                                return (
-                                                    <div key={idx} style={{ backgroundColor: '#0f172a', padding: '1.25rem', borderRadius: '8px', border: '1px solid #334155' }}>
-                                                        <span style={{ color: '#94a3b8', fontSize: '0.8rem', fontWeight: '700' }}>{cat.category}</span>
-                                                        <h3 style={{ margin: '0.5rem 0' }}>{rate}% Accuracy</h3>
-                                                        <div style={{ width: '100%', height: '6px', backgroundColor: '#1e293b', borderRadius: '10px', overflow: 'hidden' }}>
-                                                            <div style={{ width: `${rate}%`, height: '100%', backgroundColor: '#10b981' }}></div>
+                                            {stats.categoryBreakdown.length === 0 ? (
+                                                <p style={{ color: '#64748b' }}>No statistical metrics mapped yet.</p>
+                                            ) : (
+                                                stats.categoryBreakdown.map((cat, idx) => {
+                                                    const rate = Math.round((cat.correct / cat.total) * 100);
+                                                    return (
+                                                        <div key={idx} style={{ backgroundColor: '#0f172a', padding: '1.25rem', borderRadius: '8px', border: '1px solid #334155' }}>
+                                                            <span style={{ color: '#94a3b8', fontSize: '0.8rem', fontWeight: '700' }}>{cat.category}</span>
+                                                            <h3 style={{ margin: '0.5rem 0' }}>{rate}% Accuracy</h3>
+                                                            <div style={{ width: '100%', height: '6px', backgroundColor: '#1e293b', borderRadius: '10px', overflow: 'hidden' }}>
+                                                                <div style={{ width: `${rate}%`, height: '100%', backgroundColor: '#10b981' }}></div>
+                                                            </div>
                                                         </div>
-                                                    </div>
-                                                );
-                                            })}
+                                                    );
+                                                })
+                                            )}
                                         </div>
                                     </div>
 
                                     <div style={{ backgroundColor: '#1e293b', padding: '2rem', borderRadius: '12px', border: '1px solid #334155' }}>
                                         <h3 style={{ margin: '0 0 1.5rem 0' }}>⏳ Complete Evaluation History Log</h3>
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                                            {stats.historyLog.map((log, i) => (
-                                                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '1rem', backgroundColor: '#0f172a', borderRadius: '8px', borderLeft: '4px solid #3b82f6', gap: '0.5rem' }}>
-                                                    <div>
-                                                        <h4 style={{ margin: 0 }}>{log.title}</h4>
-                                                        <span style={{ color: '#64748b', fontSize: '0.8rem' }}>{new Date(log.attempted_at).toLocaleString()}</span>
+                                            {stats.historyLog.length === 0 ? (
+                                                <p style={{ color: '#64748b' }}>No previous logs written to memory matrix.</p>
+                                            ) : (
+                                                stats.historyLog.map((log, i) => (
+                                                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '1rem', backgroundColor: '#0f172a', borderRadius: '8px', borderLeft: '4px solid #3b82f6', gap: '0.5rem' }}>
+                                                        <div>
+                                                            <h4 style={{ margin: 0 }}>{log.title}</h4>
+                                                            <span style={{ color: '#64748b', fontSize: '0.8rem' }}>{new Date(log.attempted_at).toLocaleString()}</span>
+                                                        </div>
+                                                        <strong style={{ color: '#10b981', whiteSpace: 'nowrap' }}>{log.score} / {log.total_questions}</strong>
                                                     </div>
-                                                    <strong style={{ color: '#10b981', whiteSpace: 'nowrap' }}>{log.score} / {log.total_questions}</strong>
-                                                </div>
-                                            ))}
+                                                ))
+                                            )}
                                         </div>
                                     </div>
                                 </div>
@@ -285,12 +311,16 @@ export default function Dashboard() {
                     <section style={{ backgroundColor: '#1e293b', padding: '1.5rem', borderRadius: '12px', border: '1px solid #334155' }}>
                         <h2 style={{ fontSize: '1.25rem', marginBottom: '1rem', color: '#3b82f6' }}>🏆 LearnForge Campus Leaderboard</h2>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                            {leaderboard.map((leader, i) => (
-                                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.75rem 1rem', backgroundColor: '#0f172a', borderRadius: '8px' }}>
-                                    <span><strong>#{i + 1}</strong> {leader.name} {leader.name === user?.name && '(You)'}</span>
-                                    <strong style={{ color: '#10b981' }}>{leader.learning_score} EXP</strong>
-                                </div>
-                            ))}
+                            {leaderboard.length === 0 ? (
+                                <p style={{ color: '#64748b' }}>Awaiting leaderboard scores...</p>
+                            ) : (
+                                leaderboard.map((leader, i) => (
+                                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.75rem 1rem', backgroundColor: '#0f172a', borderRadius: '8px' }}>
+                                        <span><strong>#{i + 1}</strong> {leader.name} {leader.name === user?.name && '(You)'}</span>
+                                        <strong style={{ color: '#10b981' }}>{leader.learning_score} EXP</strong>
+                                    </div>
+                                ))
+                            )}
                         </div>
                     </section>
                 </main>
