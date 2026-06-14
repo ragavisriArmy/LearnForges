@@ -3,9 +3,9 @@ import { AuthContext } from '../context/AuthContext';
 import axios from 'axios';
 
 export default function Dashboard() {
-    // SAFELY handle missing AuthContext by falling back to a dummy profile
+    // FIXED: Removed the hardcoded fallback name so it uses the real logged-in friend's data
     const auth = useContext(AuthContext) || {};
-    const user = auth.user || { id: 1, name: "M. Ragavisri" }; 
+    const user = auth.user || null; 
 
     // Dynamically uses the production API URL when live, falls back to localhost if not found
     const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
@@ -54,6 +54,7 @@ export default function Dashboard() {
     }, []);
 
     const fetchInitialData = async () => {
+        if (!user) return; 
         try {
             const coursesRes = await axios.get(`${API_BASE_URL}/api/quiz/courses`);
             setCourses(coursesRes.data.courses || []);
@@ -101,7 +102,6 @@ export default function Dashboard() {
                 userId: user.id, courseId: selectedCourseId, selectedAnswers
             });
             setResultsSummary({ score: response.data.score, total: response.data.totalQuestions });
-            let imgElement = response.data.score;
             setQuizFinished(true);
             
             const statsRes = await axios.get(`${API_BASE_URL}/api/quiz/stats/${user.id}`);
@@ -127,7 +127,8 @@ export default function Dashboard() {
         } catch (err) { alert("Fault writing custom module rows."); }
     };
 
-    if (loading) return <div style={{ padding: '4rem', textAlign: 'center', color: '#94a3b8' }}>Loading LearnForge Matrix Systems...</div>;
+    // If no user information is retrieved yet, wait for AuthContext to resolve the profile
+    if (!user) return <div style={{ padding: '4rem', textAlign: 'center', color: '#94a3b8' }}>Verifying Profile Session Array...</div>;
 
     return (
         <div style={{ maxWidth: '1240px', margin: '2rem auto', padding: '0 1.5rem', color: '#f8fafc', fontFamily: 'system-ui, sans-serif' }}>
@@ -136,7 +137,8 @@ export default function Dashboard() {
             <header className="responsive-header">
                 <div>
                     <h1 style={{ fontSize: '2.25rem', fontWeight: '800', letterSpacing: '-0.05em', margin: 0 }}>Learn<span style={{ color: '#3b82f6' }}>Forge</span> Workspace</h1>
-                    <p style={{ color: '#94a3b8', fontSize: '0.95rem', margin: '0.25rem 0 0 0' }}>Operator: <strong>{user?.name}</strong></p>
+                    {/* FIXED: This will now dynamically display whoever is logged in */}
+                    <p style={{ color: '#94a3b8', fontSize: '0.95rem', margin: '0.25rem 0 0 0' }}>Operator: <strong>{user.name}</strong></p>
                 </div>
                 {/* RESPONSIVE BUTTON WRAPPER */}
                 <nav className="responsive-nav">
@@ -155,7 +157,7 @@ export default function Dashboard() {
                         <div style={{ backgroundColor: '#1e293b', padding: '2rem', borderRadius: '12px', border: '1px solid #334155' }}>
                             {!quizFinished ? (
                                 <div>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', borderBottom: '2px solid #334155', paddingBottom: '1rem' }}>
+                                    <div style={{ display: 'flex', justifycontent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', borderBottom: '2px solid #334155', paddingBottom: '1rem' }}>
                                         <h2 style={{ color: '#3b82f6', margin: 0 }}>Knowledge Assessment</h2>
                                         <div style={{ padding: '0.5rem 1rem', borderRadius: '6px', backgroundColor: '#0f172a', border: timeLeft <= 10 ? '1px solid #ef4444' : '1px solid #334155' }}>
                                             <strong style={{ color: timeLeft <= 10 ? '#ef4444' : '#10b981' }}>{timeLeft}s</strong>
