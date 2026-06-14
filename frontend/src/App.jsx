@@ -1,4 +1,4 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useEffect } from 'react';
 import Landing from './pages/Landing';
 import Dashboard from './pages/Dashboard';
 import Login from './pages/Login'; 
@@ -8,8 +8,16 @@ export default function App() {
     const auth = useContext(AuthContext) || {};
     const user = auth.user || null;
 
-    // We track the linear app view state: 'landing' -> 'login' -> 'dashboard'
+    // Track the linear app view state: 'landing' -> 'login' -> 'dashboard'
     const [currentView, setCurrentView] = useState('landing');
+
+    // AUTOMATIC SESSION SYNC: If a logged-in user is found in the local cache storage, 
+    // bypass the landing/login flows completely on mount or refresh!
+    useEffect(() => {
+        if (user) {
+            setCurrentView('dashboard');
+        }
+    }, [user]);
 
     // 1. PHASE 1: Elegant Showcase Landing Page
     if (currentView === 'landing') {
@@ -17,7 +25,6 @@ export default function App() {
     }
 
     // 2. PHASE 2: Secured Console Authentication
-    // If a real backend context user exists, or if we skip login, jump to dashboard
     if (currentView === 'login') {
         if (user) {
             return <Dashboard />;
@@ -31,5 +38,10 @@ export default function App() {
     }
 
     // 3. PHASE 3: Functional Engineering Workspace
+    // Extra safety: If the user manually logged out or cleared data, send them back to login
+    if (currentView === 'dashboard' && !user) {
+        return <Login onSuccess={() => setCurrentView('dashboard')} onBypass={() => setCurrentView('dashboard')} />;
+    }
+
     return <Dashboard />;
 }

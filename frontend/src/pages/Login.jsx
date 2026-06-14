@@ -26,7 +26,12 @@ export default function Login({ onSuccess, onBypass }) {
                 if (res.data && res.data.token && res.data.user) {
                     // Match the correct signature: login(userData, userToken)
                     login(res.data.user, res.data.token);
+                    
+                    // Trigger standard parent handlers if they exist
                     if (onSuccess) onSuccess();
+                    
+                    // FORCE RELOAD ROUTE BYPASS: Force a safe hard reload so App.jsx instantly reads the new session
+                    window.location.reload();
                 } else {
                     setErrorMessage("Invalid credentials response structure.");
                 }
@@ -37,6 +42,7 @@ export default function Login({ onSuccess, onBypass }) {
         } else {
             // Otherwise, fallback bypass cleanly straight to the dashboard workspace metrics!
             if (onBypass) onBypass();
+            window.location.reload();
         }
     };
 
