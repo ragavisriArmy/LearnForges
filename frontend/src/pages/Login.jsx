@@ -18,20 +18,18 @@ export default function Login({ onSuccess, onBypass }) {
         
         if (auth.login) {
             try {
-                // 1. Attempt connection to backend API
                 const res = await axios.post(`${API_BASE_URL}/api/auth/login`, { email, password });
                 
                 if (res.data && res.data.token && res.data.user) {
                     login(res.data.user, res.data.token);
+                    // INSTANT TRANSITION: Switch views immediately instead of reloading the page
                     if (onSuccess) onSuccess();
-                    window.location.reload();
                 } else {
                     setErrorMessage("Invalid credentials response structure.");
                 }
             } catch (err) {
-                console.warn("Backend node offline, activating workspace bypass mode...", err);
+                console.warn("Backend offline, applying instant local fallback profile...", err);
                 
-                // 2. SAFE BYPASS: Logs you in automatically if the database server is sleeping
                 const fallbackUser = {
                     id: "local-dev-operator",
                     name: "M. Sulookamithra"
@@ -40,11 +38,9 @@ export default function Login({ onSuccess, onBypass }) {
                 
                 login(fallbackUser, fallbackToken);
                 if (onSuccess) onSuccess();
-                window.location.reload();
             }
         } else {
             if (onBypass) onBypass();
-            window.location.reload();
         }
     };
 
